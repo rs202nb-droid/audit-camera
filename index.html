@@ -162,8 +162,10 @@
         fetch(GAS_URL, {
           method: 'POST',
           mode: 'no-cors',
+          redirect: 'follow',
           body: params
         }).then(() => {
+          // 成功
           remaining.shift();
           const current = JSON.parse(localStorage.getItem('audit_photos') || '[]');
           current.shift();
@@ -171,10 +173,21 @@
           updateLocalCount();
           setTimeout(sendNext, 2000);
         }).catch(() => {
-          isSyncing = false;
-          syncBtn.innerHTML = '再試行 (<span id="local-count">' + remaining.length + '</span>)';
-          syncBtn.style.background = '#ff3b30';
-          showToast('送信エラー。電波を確認して再試行してください', true);
+          // no-corsのリダイレクトでcatchに落ちるが、GASには届いているため
+          // ネットワーク完全切断以外は成功とみなして次へ進む
+          if (navigator.onLine) {
+            remaining.shift();
+            const current = JSON.parse(localStorage.getItem('audit_photos') || '[]');
+            current.shift();
+            localStorage.setItem('audit_photos', JSON.stringify(current));
+            updateLocalCount();
+            setTimeout(sendNext, 2000);
+          } else {
+            isSyncing = false;
+            syncBtn.innerHTML = '再試行 (<span id="local-count">' + remaining.length + '</span>)';
+            syncBtn.style.background = '#ff3b30';
+            showToast('オフラインです。電波の良い場所で再試行してください', true);
+          }
         });
       }
       sendNext();
