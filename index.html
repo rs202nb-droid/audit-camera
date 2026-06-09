@@ -152,7 +152,6 @@
         fetch(GAS_URL, {
           method: 'POST',
           mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(remaining[0])
         }).then(() => {
           remaining.shift();
@@ -160,7 +159,7 @@
           current.shift();
           localStorage.setItem('audit_photos', JSON.stringify(current));
           updateLocalCount();
-          sendNext();
+          setTimeout(sendNext, 1500);
         }).catch(() => {
           isSyncing = false;
           syncBtn.innerHTML = '再試行 (<span id="local-count">' + remaining.length + '</span>)';
