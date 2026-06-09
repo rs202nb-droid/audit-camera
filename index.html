@@ -166,14 +166,10 @@
         params.append('image',     item.image);
         params.append('timestamp', String(item.timestamp));
 
-        // 送信を投げる（成功/失敗は気にしない、GASへは確実に届く）
-        try {
-          const xhr = new XMLHttpRequest();
-          xhr.open('POST', GAS_URL, true);
-          xhr.send(params);
-        } catch(e) {}
-        // GASの処理完了を待つために固定時間後に次へ進む
+        // 【デバッグ用】XHRを完全に削除してsetTimeoutだけ
+        showToast('タイマー開始 6秒...');
         setTimeout(function() {
+          showToast('タイマー発火！');
           index++;
           const remaining = JSON.parse(localStorage.getItem('audit_photos') || '[]');
           remaining.shift();
