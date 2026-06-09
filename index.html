@@ -128,7 +128,8 @@
 
     function updateLocalCount() {
       const localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-      document.getElementById('local-count').innerText = localData.length;
+      const el = document.getElementById('local-count');
+      if (el) el.innerText = localData.length;
     }
 
     let isSyncing = false;
@@ -166,10 +167,14 @@
         params.append('image',     item.image);
         params.append('timestamp', String(item.timestamp));
 
-        // 【デバッグ用】XHRを完全に削除してsetTimeoutだけ
-        showToast('タイマー開始 6秒...');
+        // 送信
+        try {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', GAS_URL, true);
+          xhr.send(params);
+        } catch(e) {}
+        // 6秒後に次へ
         setTimeout(function() {
-          showToast('タイマー発火！');
           index++;
           const remaining = JSON.parse(localStorage.getItem('audit_photos') || '[]');
           remaining.shift();
