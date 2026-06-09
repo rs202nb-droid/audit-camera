@@ -166,26 +166,24 @@
         params.append('image',     item.image);
         params.append('timestamp', String(item.timestamp));
 
-        // fetchを実行し、完了したら次へ。Promise.raceで8秒タイムアウトを設定
-        Promise.race([
-          fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: params }),
-          new Promise(resolve => setTimeout(resolve, 8000))
-        ]).then(() => {
+        // XMLHttpRequestで送信（iOS Safariでも確実にコールバックが動く）
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', GAS_URL, true);
+
+        function proceed() {
           index++;
           const remaining = JSON.parse(localStorage.getItem('audit_photos') || '[]');
           remaining.shift();
           localStorage.setItem('audit_photos', JSON.stringify(remaining));
           updateLocalCount();
           sendOne();
-        }).catch(() => {
-          // エラーでも次へ進む
-          index++;
-          const remaining = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-          remaining.shift();
-          localStorage.setItem('audit_photos', JSON.stringify(remaining));
-          updateLocalCount();
-          sendOne();
-        });
+        }
+
+        xhr.onload = proceed;
+        xhr.onerror = proceed;
+        xhr.ontimeout = proceed;
+        xhr.timeout = 15000;
+        xhr.send(params);
       }
 
       sendOne();
