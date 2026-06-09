@@ -167,28 +167,30 @@
         params.append('image',     item.image);
         params.append('timestamp', item.timestamp);
 
-        fetch(GAS_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          body: params
-        }).then(() => {
-          // 成功
+        // no-corsはthen/catchが不安定なためタイムアウトで強制的に次へ進む
+        function proceedNext() {
           remaining.shift();
           const current = JSON.parse(localStorage.getItem('audit_photos') || '[]');
           current.shift();
           localStorage.setItem('audit_photos', JSON.stringify(current));
           updateLocalCount();
-          setTimeout(sendNext, 2000);
+          setTimeout(sendNext, 1000);
+        }
+
+        // GASの処理時間を考慮して10秒後に強制完了
+        const timer = setTimeout(proceedNext, 10000);
+
+        fetch(GAS_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: params
+        }).then(() => {
+          clearTimeout(timer);
+          proceedNext();
         }).catch(() => {
-          // no-corsのリダイレクトでcatchに落ちるが、GASには届いているため
-          // ネットワーク完全切断以外は成功とみなして次へ進む
+          clearTimeout(timer);
           if (navigator.onLine) {
-            remaining.shift();
-            const current = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-            current.shift();
-            localStorage.setItem('audit_photos', JSON.stringify(current));
-            updateLocalCount();
-            setTimeout(sendNext, 2000);
+            proceedNext();
           } else {
             isSyncing = false;
             syncBtn.innerHTML = '再試行 (<span id="local-count">' + remaining.length + '</span>)';
