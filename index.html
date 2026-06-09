@@ -136,15 +136,17 @@
       if (isSyncing) return;
       const localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
       if (localData.length === 0) { showToast('送信する写真はありません', true); return; }
-      if (!confirm('未送信の写真が ' + localData.length + ' 件あります。\nGoogleドライブへ送信しますか？')) return;
+      if (!confirm('未送信の写真が ' + localData.length + ' 件あります。
+Googleドライブへ送信しますか？')) return;
 
       isSyncing = true;
       const syncBtn = document.getElementById('sync-btn');
-      const total = localData.length;
-      const remaining = [...localData];
+      const snapshots = JSON.parse(localStorage.getItem('audit_photos') || '[]');
+      const total = snapshots.length;
+      let index = 0;
 
-      function sendNext() {
-        if (remaining.length === 0) {
+      function sendOne() {
+        if (index >= total) {
           localStorage.setItem('audit_photos', '[]');
           updateLocalCount();
           isSyncing = false;
@@ -153,30 +155,31 @@
           showToast('✅ ' + total + '件 送信完了！');
           return;
         }
-        const sent = total - remaining.length + 1;
-        syncBtn.textContent = '送信中 ' + sent + '/' + total;
+
+        syncBtn.textContent = '送信中 ' + (index + 1) + '/' + total;
         syncBtn.style.background = '#555';
 
-        // フォーム送信方式（application/x-www-form-urlencoded）
-        // no-corsでもGASにデータが届く
-        const item = remaining[0];
+        const item = snapshots[index];
         const params = new URLSearchParams();
         params.append('storeName', item.storeName);
         params.append('category',  item.category);
         params.append('judgement', item.judgement);
         params.append('image',     item.image);
-        params.append('timestamp', item.timestamp);
+        params.append('timestamp', String(item.timestamp));
 
-        // 送信してGASの処理完了を待たずに10秒後に次へ
         fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: params });
+
         setTimeout(function() {
+          index++;
+          const remaining = JSON.parse(localStorage.getItem('audit_photos') || '[]');
           remaining.shift();
           localStorage.setItem('audit_photos', JSON.stringify(remaining));
           updateLocalCount();
-          sendNext();
-        }, 10000);
+          sendOne();
+        }, 8000);
       }
-      sendNext();
+
+      sendOne();
     }
 
     updateLocalCount();
