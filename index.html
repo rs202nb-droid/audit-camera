@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="店舗監査">
+  <title>店舗監査カメラ</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: sans-serif; background: #111; color: #fff; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+    #camera-container { position: relative; width: 100%; flex: 1; background: #000; overflow: hidden; }
+    #video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #flash-overlay { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+    #flash-overlay.flash { opacity: 0.7; }
+    #config-container { padding: 8px 10px; background: #222; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    #store-name { flex: 1; padding: 8px; font-size: 16px; border-radius: 4px; border: none; }
+    #sync-btn { padding: 8px 12px; background: #0096ff; color: #fff; border: none; border-radius: 4px; font-weight: bold; font-size: 13px; white-space: nowrap; cursor: pointer; }
+    #category-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: #151515; flex-shrink: 0; }
+    .cat-btn { padding: 10px 4px; font-size: 13px; background: #333; color: #fff; border: 2px solid transparent; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .cat-btn.active { background: #00ff7f; color: #000; border-color: #fff; }
+    #shutter-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px; background: #000; flex-shrink: 0; }
+    .shutter-btn { font-size: 32px; font-weight: bold; border: none; border-radius: 12px; padding: 16px 0; cursor: pointer; }
+    .btn-o { background: #34c759; color: #fff; }
+    .btn-x { background: #ff3b30; color: #fff; }
+    .btn-p { background: #ffcc00; color: #000; }
+    #toast { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); background: rgba(0,200,100,0.92); color: #fff; padding: 10px 24px; border-radius: 20px; font-size: 15px; font-weight: bold; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 999; white-space: nowrap; }
+    #toast.show { opacity: 1; }
+    #toast.error { background: rgba(255,60,50,0.92); }
+  </style>
+</head>
+<body>
+  <div id="camera-container">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div id="flash-overlay"></div>
+  </div>
+  <div id="config-container">
+    <input type="text" id="store-name" placeholder="店舗名を入力 (例: 渋谷店)">
+    <button id="sync-btn" onclick="syncData()">送信 (<span id="local-count">0</span>)</button>
+  </div>
+  <div id="category-container">
+    <button class="cat-btn active" onclick="selectCategory(this, '労務管理')">労務管理</button>
+    <button class="cat-btn" onclick="selectCategory(this, '安全衛生')">安全衛生</button>
+    <button class="cat-btn" onclick="selectCategory(this, '基本項目')">基本項目</button>
+    <button class="cat-btn" onclick="selectCategory(this, '事務金銭')">事務金銭</button>
+    <button class="cat-btn" onclick="selectCategory(this, '組織開発')">組織開発</button>
+    <button class="cat-btn" onclick="selectCategory(this, 'クレンリネス')">クレンリネス</button>
+  </div>
+  <div id="shutter-container">
+    <button class="shutter-btn btn-o" onclick="takeSnapshot('〇')">〇</button>
+    <button class="shutter-btn btn-x" onclick="takeSnapshot('×')">×</button>
+    <button class="shutter-btn btn-p" onclick="takeSnapshot('▲')">▲</button>
+  </div>
+  <div id="toast"></div>
+  <script>
+    const GAS_URL = 'https://script.google.com/a/macros/skylark.co.jp/s/AKfycbxm_mkAZ1YaBn_VnFpI8qdMPA_hteE9EtCLOFAOpcltUHFOUCuu8XngX-5fGgGmy5Ir/exec';
+    let currentCategory = '労務管理';
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const storeInput = document.getElementById('store-name');
+    const flashOverlay = document.getElementById('flash-overlay');
+
+    if (localStorage.getItem('saved_store_name')) {
+      storeInput.value = localStorage.getItem('saved_store_name');
+    }
+    storeInput.addEventListener('input', () => {
+      localStorage.setItem('saved_store_name', storeInput.value);
+    });
+
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    }).then(stream => {
+      video.srcObject = stream;
+    }).catch(() => {
+      showToast('カメラの起動に失敗しました', true);
+    });
+
+    function selectCategory(element, name) {
+      document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
+      element.classList.add('active');
+      currentCategory = name;
+    }
+
+    function takeSnapshot(judgement) {
+      const storeName = storeInput.value.trim();
+      if (!storeName) { showToast('店舗名を入力してください', true); return; }
+      if (!video.srcObject) { showToast('カメラが起動していません', true); return; }
+
+      flashOverlay.classList.add('flash');
+      setTimeout(() => flashOverlay.classList.remove('flash'), 150);
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+      const newData = {
+        storeName: storeName,
+        category: currentCategory,
+        judgement: judgement,
+        image: imageData,
+        timestamp: new Date().getTime()
+      };
+      let localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
+      localData.push(newData);
+      localStorage.setItem('audit_photos', JSON.stringify(localData));
+      updateLocalCount();
+      showToast(judgement + '（' + currentCategory + '）保存しました');
+    }
+
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'show' + (isError ? ' error' : '');
+      setTimeout(() => { toast.className = ''; }, 2000);
+    }
+
+    function updateLocalCount() {
+      const localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
+      document.getElementById('local-count').innerText = localData.length;
+    }
+
+    let isSyncing = false;
+    function syncData() {
+      if (isSyncing) return;
+      const localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
+      if (localData.length === 0) { showToast('送信する写真はありません', true); return; }
+      if (!confirm('未送信の写真が ' + localData.length + ' 件あります。\nGoogleドライブへ送信しますか？')) return;
+
+      isSyncing = true;
+      const syncBtn = document.getElementById('sync-btn');
+      const total = localData.length;
+      const remaining = [...localData];
+
+      function sendNext() {
+        if (remaining.length === 0) {
+          localStorage.setItem('audit_photos', '[]');
+          updateLocalCount();
+          isSyncing = false;
+          syncBtn.innerHTML = '送信 (<span id="local-count">0</span>)';
+          syncBtn.style.background = '#0096ff';
+          showToast('✅ ' + total + '件 送信完了！');
+          return;
+        }
+        const sent = total - remaining.length + 1;
+        syncBtn.textContent = '送信中 ' + sent + '/' + total;
+        syncBtn.style.background = '#555';
+
+        fetch(GAS_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(remaining[0])
+        }).then(() => {
+          remaining.shift();
+          const current = JSON.parse(localStorage.getItem('audit_photos') || '[]');
+          current.shift();
+          localStorage.setItem('audit_photos', JSON.stringify(current));
+          updateLocalCount();
+          sendNext();
+        }).catch(() => {
+          isSyncing = false;
+          syncBtn.innerHTML = '再試行 (<span id="local-count">' + remaining.length + '</span>)';
+          syncBtn.style.background = '#ff3b30';
+          showToast('送信エラー。電波を確認して再試行してください', true);
+        });
+      }
+      sendNext();
+    }
+
+    updateLocalCount();
+  </script>
+</body>
+</html>
