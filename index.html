@@ -92,10 +92,18 @@
       flashOverlay.classList.add('flash');
       setTimeout(() => flashOverlay.classList.remove('flash'), 150);
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video, 0, 0);
-      const imageData = canvas.toDataURL('image/jpeg', 0.8);
+      // 長辺1280px以下にリサイズして容量を削減
+      const MAX_SIZE = 1280;
+      let w = video.videoWidth;
+      let h = video.videoHeight;
+      if (w > MAX_SIZE || h > MAX_SIZE) {
+        if (w > h) { h = Math.round(h * MAX_SIZE / w); w = MAX_SIZE; }
+        else { w = Math.round(w * MAX_SIZE / h); h = MAX_SIZE; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+      const imageData = canvas.toDataURL('image/jpeg', 0.6);
 
       const newData = {
         storeName: storeName,
