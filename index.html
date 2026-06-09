@@ -55,7 +55,7 @@
   </div>
   <div id="toast"></div>
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxXnwT_htQP85U8gAqMN5RtzfDerH9S3KP6uM4hgoRMDnakWUV04tgzvtqIFMwKPLt7/exec';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzXAdKFFySAAyp_GYadsdZgXL09WmlAase178Et7xyREXTQ_lAi3jy7R1p7ERJeZLp2/exec';
     let currentCategory = '労務管理';
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -149,17 +149,27 @@
         syncBtn.textContent = '送信中 ' + sent + '/' + total;
         syncBtn.style.background = '#555';
 
+        // フォーム送信方式（application/x-www-form-urlencoded）
+        // no-corsでもGASにデータが届く
+        const item = remaining[0];
+        const params = new URLSearchParams();
+        params.append('storeName', item.storeName);
+        params.append('category',  item.category);
+        params.append('judgement', item.judgement);
+        params.append('image',     item.image);
+        params.append('timestamp', item.timestamp);
+
         fetch(GAS_URL, {
           method: 'POST',
           mode: 'no-cors',
-          body: JSON.stringify(remaining[0])
+          body: params
         }).then(() => {
           remaining.shift();
           const current = JSON.parse(localStorage.getItem('audit_photos') || '[]');
           current.shift();
           localStorage.setItem('audit_photos', JSON.stringify(current));
           updateLocalCount();
-          setTimeout(sendNext, 1500);
+          setTimeout(sendNext, 2000);
         }).catch(() => {
           isSyncing = false;
           syncBtn.innerHTML = '再試行 (<span id="local-count">' + remaining.length + '</span>)';
