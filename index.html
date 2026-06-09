@@ -166,24 +166,21 @@
         params.append('image',     item.image);
         params.append('timestamp', String(item.timestamp));
 
-        // XMLHttpRequestで送信（iOS Safariでも確実にコールバックが動く）
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', GAS_URL, true);
-
-        function proceed() {
+        // 送信を投げる（成功/失敗は気にしない、GASへは確実に届く）
+        try {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', GAS_URL, true);
+          xhr.send(params);
+        } catch(e) {}
+        // GASの処理完了を待つために固定時間後に次へ進む
+        setTimeout(function() {
           index++;
           const remaining = JSON.parse(localStorage.getItem('audit_photos') || '[]');
           remaining.shift();
           localStorage.setItem('audit_photos', JSON.stringify(remaining));
           updateLocalCount();
           sendOne();
-        }
-
-        xhr.onload = proceed;
-        xhr.onerror = proceed;
-        xhr.ontimeout = proceed;
-        xhr.timeout = 15000;
-        xhr.send(params);
+        }, 6000);
       }
 
       sendOne();
