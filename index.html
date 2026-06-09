@@ -167,37 +167,20 @@
         params.append('image',     item.image);
         params.append('timestamp', item.timestamp);
 
-        // no-corsはthen/catchが不安定なためタイムアウトで強制的に次へ進む
-        function proceedNext() {
-          remaining.shift();
-          const current = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-          current.shift();
-          localStorage.setItem('audit_photos', JSON.stringify(current));
-          updateLocalCount();
-          setTimeout(sendNext, 1000);
-        }
-
-        // GASの処理時間を考慮して10秒後に強制完了
-        const timer = setTimeout(proceedNext, 10000);
-
+        // no-corsはレスポンスが読めないため送信後5秒で強制的に次へ進む
         fetch(GAS_URL, {
           method: 'POST',
           mode: 'no-cors',
           body: params
-        }).then(() => {
-          clearTimeout(timer);
-          proceedNext();
-        }).catch(() => {
-          clearTimeout(timer);
-          if (navigator.onLine) {
-            proceedNext();
-          } else {
-            isSyncing = false;
-            syncBtn.innerHTML = '再試行 (<span id="local-count">' + remaining.length + '</span>)';
-            syncBtn.style.background = '#ff3b30';
-            showToast('オフラインです。電波の良い場所で再試行してください', true);
-          }
         });
+
+        setTimeout(() => {
+          remaining.shift();
+          const current = JSON.parse(localStorage.getItem('audit_photos') || '[]');
+          current.shift();
+          localStorage.setItem('audit_photos', JSON.stringify(current));
+          sendNext();
+        }, 5000);
       }
       sendNext();
     }
