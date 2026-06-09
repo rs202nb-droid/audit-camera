@@ -136,8 +136,7 @@
       if (isSyncing) return;
       const localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
       if (localData.length === 0) { showToast('送信する写真はありません', true); return; }
-      if (!confirm('未送信の写真が ' + localData.length + ' 件あります。
-Googleドライブへ送信しますか？')) return;
+      if (!confirm('未送信の写真が ' + localData.length + ' 件あります。\nGoogleドライブへ送信しますか？')) return;
 
       isSyncing = true;
       const syncBtn = document.getElementById('sync-btn');
