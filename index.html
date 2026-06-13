@@ -165,10 +165,11 @@
       localStorage.setItem('audit_photos', JSON.stringify(localData));
 
       updateLocalCount();
+      autoSync(); // 撮影のたびに即送信トリガー
     }
 
     // GAS WebアプリのURL
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxozdc05tBzcLcA3-fS07Z5TaW9ammMTkQVj8KOpzIjkYOio4jDWbbyIGPoTuLqpiGB/exec';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzzm1rsYowVX0rFUb5JItn4UIhfv9rl2I_8b-aN1LnSGGREmDVREF1VXboZ77WqXCou/exec';
 
     // 未送信件数をボタンに反映
     function updateLocalCount() {
