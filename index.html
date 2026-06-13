@@ -141,12 +141,14 @@
       video.classList.add('flash');
       setTimeout(() => video.classList.remove('flash'), 200);
 
-      // ビデオ映像を写真として切り取る
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      // ビデオ映像を写真として切り取る（横1280pxに縮小・品質0.6）
+      const MAX_WIDTH = 1280;
+      const scale = Math.min(1, MAX_WIDTH / video.videoWidth);
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = canvas.toDataURL('image/jpeg', 0.8); // 容量を抑えるため少し圧縮
+      const imageData = canvas.toDataURL('image/jpeg', 0.6);
 
       // 撮影データを作成
       const newData = {
