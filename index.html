@@ -2,44 +2,43 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="店舗監査">
   <title>店舗監査カメラ</title>
   <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: sans-serif; background: #111; color: #fff; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
-    #camera-container { position: relative; width: 100%; flex: 1; background: #000; overflow: hidden; }
-    #video { width: 100%; height: 100%; object-fit: cover; display: block; }
-    #flash-overlay { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
-    #flash-overlay.flash { opacity: 0.7; }
-    #config-container { padding: 8px 10px; background: #222; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-    #store-name { flex: 1; padding: 8px; font-size: 16px; border-radius: 4px; border: none; }
-    #sync-btn { padding: 8px 12px; background: #0096ff; color: #fff; border: none; border-radius: 4px; font-weight: bold; font-size: 13px; white-space: nowrap; cursor: pointer; }
-    #category-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: #151515; flex-shrink: 0; }
-    .cat-btn { padding: 10px 4px; font-size: 13px; background: #333; color: #fff; border: 2px solid transparent; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    body { margin: 0; font-family: sans-serif; background: #111; color: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    /* カメラエリア（上半分） */
+    #camera-container { relative; width: 100%; height: 45vh; background: #000; display: flex; justify-content: center; align-items: center; }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    /* 設定エリア（中央） */
+    #config-container { padding: 10px; background: #222; display: flex; gap: 10px; align-items: center; }
+    input { flex: 1; padding: 8px; font-size: 16px; border-radius: 4px; border: none; }
+    #sync-btn { padding: 8px 15px; background: #0096ff; color: #fff; border: none; border-radius: 4px; font-weight: bold; font-size: 14px; }
+    /* カテゴリボタン（中下段） */
+    #category-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 5px; background: #151515; }
+    .cat-btn { padding: 12px 5px; font-size: 14px; background: #333; color: #fff; border: 2px solid transparent; border-radius: 6px; font-weight: bold; }
     .cat-btn.active { background: #00ff7f; color: #000; border-color: #fff; }
-    #shutter-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px; background: #000; flex-shrink: 0; }
-    .shutter-btn { font-size: 32px; font-weight: bold; border: none; border-radius: 12px; padding: 16px 0; cursor: pointer; }
-    .btn-o { background: #34c759; color: #fff; }
-    .btn-x { background: #ff3b30; color: #fff; }
-    .btn-p { background: #ffcc00; color: #000; }
-    #toast { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); background: rgba(0,200,100,0.92); color: #fff; padding: 10px 24px; border-radius: 20px; font-size: 15px; font-weight: bold; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 999; white-space: nowrap; }
-    #toast.show { opacity: 1; }
-    #toast.error { background: rgba(255,60,50,0.92); }
+    /* シャッターボタン（最下段） */
+    #shutter-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px; background: #000; height: 15vh; }
+    .shutter-btn { font-size: 28px; font-weight: bold; border: none; border-radius: 12px; color: #fff; color: #000; }
+    .btn-o { background: #34c759; color: #fff; } /* 緑 */
+    .btn-x { background: #ff3b30; color: #fff; } /* 赤 */
+    .btn-p { background: #ffcc00; color: #000; } /* 黄▲ */
+    /* シャッターが押された瞬間のフラッシュ効果 */
+    .flash { animation: flash-animation 0.2s ease-out; }
+    @keyframes flash-animation { 0% { opacity: 0.3; } 100% { opacity: 1; } }
   </style>
 </head>
 <body>
+
   <div id="camera-container">
     <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas" style="display:none;"></canvas>
-    <div id="flash-overlay"></div>
   </div>
+
   <div id="config-container">
     <input type="text" id="store-name" placeholder="店舗名を入力 (例: 渋谷店)">
     <button id="sync-btn" onclick="syncData()">送信 (<span id="local-count">0</span>)</button>
   </div>
+
   <div id="category-container">
     <button class="cat-btn active" onclick="selectCategory(this, '労務管理')">労務管理</button>
     <button class="cat-btn" onclick="selectCategory(this, '安全衛生')">安全衛生</button>
@@ -48,63 +47,104 @@
     <button class="cat-btn" onclick="selectCategory(this, '組織開発')">組織開発</button>
     <button class="cat-btn" onclick="selectCategory(this, 'クレンリネス')">クレンリネス</button>
   </div>
+
   <div id="shutter-container">
     <button class="shutter-btn btn-o" onclick="takeSnapshot('〇')">〇</button>
     <button class="shutter-btn btn-x" onclick="takeSnapshot('×')">×</button>
     <button class="shutter-btn btn-p" onclick="takeSnapshot('▲')">▲</button>
   </div>
-  <div id="toast"></div>
+
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzXAdKFFySAAyp_GYadsdZgXL09WmlAase178Et7xyREXTQ_lAi3jy7R1p7ERJeZLp2/exec';
     let currentCategory = '労務管理';
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const storeInput = document.getElementById('store-name');
-    const flashOverlay = document.getElementById('flash-overlay');
 
-    if (localStorage.getItem('saved_store_name')) {
+    // 起動時に前回の店舗名を復元
+    if(localStorage.getItem('saved_store_name')) {
       storeInput.value = localStorage.getItem('saved_store_name');
     }
     storeInput.addEventListener('input', () => {
       localStorage.setItem('saved_store_name', storeInput.value);
     });
 
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-      audio: false
-    }).then(stream => {
-      video.srcObject = stream;
-    }).catch(() => {
-      showToast('カメラの起動に失敗しました', true);
-    });
+    // シャッター音をWeb Audio APIで生成
+    function playShutterSound() {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
 
+      // ① 高音の「カシャ」成分（ノイズ）
+      const bufferSize = ctx.sampleRate * 0.08;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.value = 3500;
+      noiseFilter.Q.value = 0.8;
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.6, ctx.currentTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noise.start();
+
+      // ② 低音の「カッ」成分（トーン）
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(200, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.06);
+
+      const oscGain = ctx.createGain();
+      oscGain.gain.setValueAtTime(0.5, ctx.currentTime);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+
+      osc.connect(oscGain);
+      oscGain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.06);
+    }
+
+    // スマホのカメラを起動（外カメラ優先）
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false
+    }).then(stream => { video.srcObject = stream; })
+      .catch(err => { alert("カメラの起動に失敗しました。設定を確認してください。"); });
+
+    // カテゴリ選択
     function selectCategory(element, name) {
       document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
       element.classList.add('active');
       currentCategory = name;
     }
 
+    // ★大本命：〇×▲が押されたら「即撮影・即スマホ内保存」
     function takeSnapshot(judgement) {
       const storeName = storeInput.value.trim();
-      if (!storeName) { showToast('店舗名を入力してください', true); return; }
-      if (!video.srcObject) { showToast('カメラが起動していません', true); return; }
+      if (!storeName) { alert("最初に店舗名を入力してください。"); return; }
 
-      flashOverlay.classList.add('flash');
-      setTimeout(() => flashOverlay.classList.remove('flash'), 150);
+      // シャッター音を鳴らす
+      playShutterSound();
 
-      // 長辺1280px以下にリサイズして容量を削減
-      const MAX_SIZE = 1280;
-      let w = video.videoWidth;
-      let h = video.videoHeight;
-      if (w > MAX_SIZE || h > MAX_SIZE) {
-        if (w > h) { h = Math.round(h * MAX_SIZE / w); w = MAX_SIZE; }
-        else { w = Math.round(w * MAX_SIZE / h); h = MAX_SIZE; }
-      }
-      canvas.width = w;
-      canvas.height = h;
-      canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-      const imageData = canvas.toDataURL('image/jpeg', 0.6);
+      // 画面を一瞬フラッシュさせて撮った感を出します
+      video.classList.add('flash');
+      setTimeout(() => video.classList.remove('flash'), 200);
 
+      // ビデオ映像を写真として切り取る
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = canvas.toDataURL('image/jpeg', 0.8); // 容量を抑えるため少し圧縮
+
+      // 撮影データを作成
       const newData = {
         storeName: storeName,
         category: currentCategory,
@@ -112,81 +152,68 @@
         image: imageData,
         timestamp: new Date().getTime()
       };
+
+      // スマホの中（LocalStorage）に安全に保存
       let localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
       localData.push(newData);
       localStorage.setItem('audit_photos', JSON.stringify(localData));
+
       updateLocalCount();
-      showToast(judgement + '（' + currentCategory + '）保存しました');
     }
 
-    function showToast(msg, isError = false) {
-      const toast = document.getElementById('toast');
-      toast.textContent = msg;
-      toast.className = 'show' + (isError ? ' error' : '');
-      setTimeout(() => { toast.className = ''; }, 2000);
-    }
-
+    // 未送信の件数を更新
     function updateLocalCount() {
-      const localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-      const el = document.getElementById('local-count');
-      if (el) el.innerText = localData.length;
+      let localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
+      document.getElementById('local-count').innerText = localData.length;
     }
 
+    // 電波が良い場所でGoogleドライブへ一括送信する
     let isSyncing = false;
     function syncData() {
       if (isSyncing) return;
-      const localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-      if (localData.length === 0) { showToast('送信する写真はありません', true); return; }
-      if (!confirm('未送信の写真が ' + localData.length + ' 件あります。\nGoogleドライブへ送信しますか？')) return;
+      let localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
+      if (localData.length === 0) { alert("送信する写真はありません。"); return; }
+
+      if (!confirm(`未送信の写真が ${localData.length} 件あります。Googleドライブへ送信しますか？\n(電波の良い場所で行ってください)`)) return;
 
       isSyncing = true;
       const syncBtn = document.getElementById('sync-btn');
-      const snapshots = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-      const total = snapshots.length;
-      let index = 0;
+      syncBtn.innerText = "送信中...";
+      syncBtn.style.background = "#555";
 
-      function sendOne() {
-        if (index >= total) {
-          localStorage.setItem('audit_photos', '[]');
-          updateLocalCount();
+      function sendNext() {
+        let currentData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
+        if (currentData.length === 0) {
           isSyncing = false;
-          syncBtn.innerHTML = '送信 (<span id="local-count">0</span>)';
-          syncBtn.style.background = '#0096ff';
-          showToast('✅ ' + total + '件 送信完了！');
+          syncBtn.innerText = "送信 (0)";
+          syncBtn.style.background = "#0096ff";
+          alert("すべての写真のアップロードが完了しました！");
           return;
         }
 
-        syncBtn.textContent = '送信中 ' + (index + 1) + '/' + total;
-        syncBtn.style.background = '#555';
-
-        const item = snapshots[index];
-        const params = new URLSearchParams();
-        params.append('storeName', item.storeName);
-        params.append('category',  item.category);
-        params.append('judgement', item.judgement);
-        params.append('image',     item.image);
-        params.append('timestamp', String(item.timestamp));
-
-        // 送信
-        try {
-          const xhr = new XMLHttpRequest();
-          xhr.open('POST', GAS_URL, true);
-          xhr.send(params);
-        } catch(e) {}
-        // 6秒後に次へ
-        setTimeout(function() {
-          index++;
-          const remaining = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-          remaining.shift();
-          localStorage.setItem('audit_photos', JSON.stringify(remaining));
-          updateLocalCount();
-          sendOne();
-        }, 6000);
+        // 先頭の1件を送信
+        const itemToSend = currentData[0];
+        google.script.run
+          .withSuccessHandler(() => {
+            // 送信成功したらスマホ内から削除して次へ
+            currentData.shift();
+            localStorage.setItem('audit_photos', JSON.stringify(currentData));
+            updateLocalCount();
+            sendNext();
+          })
+          .withFailureHandler((err) => {
+            isSyncing = false;
+            syncBtn.innerText = `エラー再開 (${currentData.length})`;
+            syncBtn.style.background = "#ff3b30";
+            alert("送信中にエラーが発生しました。電波の良い場所で再度お試しください。");
+          })
+          .uploadPhoto(itemToSend);
       }
 
-      sendOne();
+      sendNext();
     }
 
+    // 起動時に件数を表示
     updateLocalCount();
   </script>
 </body>
