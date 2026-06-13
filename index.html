@@ -165,60 +165,59 @@
       updateLocalCount();
     }
 
-    // 未送信の件数を更新
+    // GAS WebアプリのURL
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwUcY2ifaqmFNKtSGXr7WrMzHIXD2X7ZTIkrs1NCndByxIDJtIKbZwRiFXhtSNOYhgh/exec';
+
+    // 未送信件数をボタンに反映
     function updateLocalCount() {
-      let localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-      document.getElementById('local-count').innerText = localData.length;
+      const count = JSON.parse(localStorage.getItem('audit_photos') || '[]').length;
+      const syncBtn = document.getElementById('sync-btn');
+      if (count === 0) {
+        syncBtn.innerText = "✓ 同期済み";
+        syncBtn.style.background = "#28a745";
+      } else {
+        syncBtn.innerText = `送信待ち ${count}件`;
+        syncBtn.style.background = "#ff9500";
+      }
     }
 
-    // 電波が良い場所でGoogleドライブへ一括送信する
+    // バックグラウンド自動送信（撮影UIをブロックしない）
     let isSyncing = false;
-    function syncData() {
+    async function autoSync() {
       if (isSyncing) return;
-      let localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-      if (localData.length === 0) { alert("送信する写真はありません。"); return; }
-
-      if (!confirm(`未送信の写真が ${localData.length} 件あります。Googleドライブへ送信しますか？\n(電波の良い場所で行ってください)`)) return;
-
       isSyncing = true;
-      const syncBtn = document.getElementById('sync-btn');
-      syncBtn.innerText = "送信中...";
-      syncBtn.style.background = "#555";
 
-      function sendNext() {
+      while (true) {
         let currentData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-        if (currentData.length === 0) {
+        if (currentData.length === 0) break;
+
+        try {
+          const res = await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify(currentData[0])
+          });
+          if (!res.ok) throw new Error('送信失敗');
+
+          currentData.shift();
+          localStorage.setItem('audit_photos', JSON.stringify(currentData));
+          updateLocalCount();
+        } catch (e) {
+          // 電波が悪い場合は30秒後にリトライ
           isSyncing = false;
-          syncBtn.innerText = "送信 (0)";
-          syncBtn.style.background = "#0096ff";
-          alert("すべての写真のアップロードが完了しました！");
+          setTimeout(autoSync, 30000);
           return;
         }
-
-        // 先頭の1件を送信
-        const itemToSend = currentData[0];
-        google.script.run
-          .withSuccessHandler(() => {
-            // 送信成功したらスマホ内から削除して次へ
-            currentData.shift();
-            localStorage.setItem('audit_photos', JSON.stringify(currentData));
-            updateLocalCount();
-            sendNext();
-          })
-          .withFailureHandler((err) => {
-            isSyncing = false;
-            syncBtn.innerText = `エラー再開 (${currentData.length})`;
-            syncBtn.style.background = "#ff3b30";
-            alert("送信中にエラーが発生しました。電波の良い場所で再度お試しください。");
-          })
-          .uploadPhoto(itemToSend);
       }
 
-      sendNext();
+      isSyncing = false;
     }
 
-    // 起動時に件数を表示
+    // 手動ボタンでも即トリガー可能
+    function syncData() { autoSync(); }
+
+    // 起動時：件数表示＆未送信があれば即送信開始
     updateLocalCount();
+    autoSync();
   </script>
 </body>
 </html>
