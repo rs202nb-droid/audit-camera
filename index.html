@@ -2,23 +2,27 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>店舗監査カメラ</title>
   <style>
-    body { margin: 0; font-family: sans-serif; background: #111; color: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    body { margin: 0; font-family: sans-serif; background: #111; color: #fff; display: flex; flex-direction: column; height: 100dvh; overflow: hidden;
+           padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); box-sizing: border-box; }
     /* カメラエリア（上半分） */
-    #camera-container { relative; width: 100%; height: 45vh; background: #000; display: flex; justify-content: center; align-items: center; }
+    #camera-container { position: relative; width: 100%; flex: 1; background: #000; display: flex; justify-content: center; align-items: center; overflow: hidden; }
     video { width: 100%; height: 100%; object-fit: cover; }
     /* 設定エリア（中央） */
-    #config-container { padding: 10px; background: #222; display: flex; gap: 10px; align-items: center; }
+    #config-container { padding: 10px; background: #222; display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
     input { flex: 1; padding: 8px; font-size: 16px; border-radius: 4px; border: none; }
     #sync-btn { padding: 8px 15px; background: #0096ff; color: #fff; border: none; border-radius: 4px; font-weight: bold; font-size: 14px; }
     /* カテゴリボタン（中下段） */
-    #category-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 5px; background: #151515; }
+    #category-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 5px; background: #151515; flex-shrink: 0; }
     .cat-btn { padding: 12px 5px; font-size: 14px; background: #333; color: #fff; border: 2px solid transparent; border-radius: 6px; font-weight: bold; }
     .cat-btn.active { background: #00ff7f; color: #000; border-color: #fff; }
     /* シャッターボタン（最下段） */
-    #shutter-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px; background: #000; height: 15vh; }
-    .shutter-btn { font-size: 28px; font-weight: bold; border: none; border-radius: 12px; color: #fff; color: #000; }
+    #shutter-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px; background: #000; height: 18vh; flex-shrink: 0; }
+    .shutter-btn { font-size: 28px; font-weight: bold; border: none; border-radius: 12px; }
     .btn-o { background: #34c759; color: #fff; } /* 緑 */
     .btn-x { background: #ff3b30; color: #fff; } /* 赤 */
     .btn-p { background: #ffcc00; color: #000; } /* 黄▲ */
