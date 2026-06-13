@@ -181,7 +181,7 @@
       }
     }
 
-    // バックグラウンド自動送信（撮影UIをブロックしない）
+    // バックグラウンド自動送信（no-corsモード・CORS制限を回避）
     let isSyncing = false;
     async function autoSync() {
       if (isSyncing) return;
@@ -191,13 +191,18 @@
         let currentData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
         if (currentData.length === 0) break;
 
+        const itemToSend = currentData[0];
         try {
-          const res = await fetch(GAS_URL, {
+          // no-corsでCORSエラーを回避（レスポンスは読めないが送信はできる）
+          await fetch(GAS_URL, {
             method: 'POST',
-            body: JSON.stringify(currentData[0])
+            mode: 'no-cors',
+            body: JSON.stringify(itemToSend)
           });
-          if (!res.ok) throw new Error('送信失敗');
 
+          // 送信後3秒待ってからGASが処理完了したとみなして削除
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          currentData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
           currentData.shift();
           localStorage.setItem('audit_photos', JSON.stringify(currentData));
           updateLocalCount();
