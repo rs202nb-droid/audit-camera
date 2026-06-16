@@ -7,13 +7,13 @@
     * { box-sizing: border-box; }
     body { margin: 0; font-family: sans-serif; background: #111; color: #fff; overflow: hidden; }
 
-    /* ===============================
-       縦向き（Portrait）レイアウト
-    =============================== */
     #app {
       display: flex;
       flex-direction: column;
-      height: 100dvh;
+      width: 100vw;
+      /* JSで --app-h をセットする */
+      height: calc(var(--app-h, 100vh));
+      overflow: hidden;
     }
 
     /* カメラ */
@@ -97,14 +97,12 @@
       font-weight: bold;
       border: none;
       border-radius: 12px;
-      color: #000;
       padding: 14px 0;
     }
     .btn-o { background: #34c759; color: #fff; }
     .btn-x { background: #ff3b30; color: #fff; }
     .btn-p { background: #ffcc00; color: #000; }
 
-    /* フラッシュ */
     .flash { animation: flash-animation 0.2s ease-out; }
     @keyframes flash-animation {
       0% { opacity: 0.3; }
@@ -117,76 +115,56 @@
     @media (orientation: landscape) {
       #app {
         flex-direction: row;
-        height: 100dvh;
       }
 
-      /* カメラをメインエリアに */
       #camera-container {
         flex: 1;
-        height: 100dvh;
+        height: 100%;
       }
 
-      /* 右サイドパネル */
       #side-panel {
         display: flex;
         flex-direction: column;
-        width: 220px;
-        min-width: 180px;
+        width: 210px;
+        min-width: 160px;
         background: #111;
-        height: 100dvh;
+        height: 100%;
         overflow: hidden;
+        flex-shrink: 0;
       }
 
-      /* 設定エリア（横向き） */
       #config-container {
         flex-direction: column;
         align-items: stretch;
         gap: 6px;
         padding: 8px;
       }
-      #config-container input {
-        width: 100%;
-      }
-      #sync-btn {
-        width: 100%;
-        text-align: center;
-      }
+      #config-container input { width: 100%; }
+      #sync-btn { width: 100%; text-align: center; }
 
-      /* カテゴリ（縦2列） */
       #category-container {
         grid-template-columns: repeat(2, 1fr);
         flex: 1;
-        gap: 4px;
-        padding: 4px;
         align-content: start;
       }
-      .cat-btn {
-        padding: 8px 4px;
-        font-size: 12px;
-      }
+      .cat-btn { padding: 8px 4px; font-size: 12px; }
 
-      /* シャッター（縦3行） */
       #shutter-container {
         grid-template-columns: 1fr;
         gap: 6px;
         padding: 8px;
       }
-      .shutter-btn {
-        font-size: 24px;
-        padding: 12px 0;
-      }
+      .shutter-btn { font-size: 22px; padding: 10px 0; }
     }
   </style>
 </head>
 <body>
-
   <div id="app">
     <div id="camera-container">
       <video id="video" autoplay playsinline muted></video>
       <canvas id="canvas" style="display:none;"></canvas>
     </div>
 
-    <!-- 横向き時はこのwrapperがサイドパネルになる -->
     <div id="side-panel">
       <div id="config-container">
         <input type="text" id="store-name" placeholder="店舗名 (例: 渋谷店)">
@@ -211,6 +189,20 @@
   </div>
 
   <script>
+    // iOSの回転バグ対策：実際の表示領域をCSS変数にセット
+    function setAppHeight() {
+      document.documentElement.style.setProperty('--app-h', window.innerHeight + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', () => {
+      // 少し待ってから再計算（iOS回転アニメーション完了後）
+      setTimeout(setAppHeight, 100);
+    });
+    // orientationchangeでも念のため
+    window.addEventListener('orientationchange', () => {
+      setTimeout(setAppHeight, 300);
+    });
+
     let currentCategory = '労務管理';
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -227,7 +219,7 @@
       video: { facingMode: { ideal: "environment" } },
       audio: false
     }).then(stream => { video.srcObject = stream; })
-      .catch(err => { alert("カメラの起動に失敗しました。設定を確認してください。"); });
+      .catch(() => { alert("カメラの起動に失敗しました。設定を確認してください。"); });
 
     function selectCategory(element, name) {
       document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
@@ -244,26 +236,17 @@
 
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL('image/jpeg', 0.8);
 
-      const newData = {
-        storeName: storeName,
-        category: currentCategory,
-        judgement: judgement,
-        image: imageData,
-        timestamp: new Date().getTime()
-      };
-
       let localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-      localData.push(newData);
+      localData.push({ storeName, category: currentCategory, judgement, image: imageData, timestamp: Date.now() });
       localStorage.setItem('audit_photos', JSON.stringify(localData));
       updateLocalCount();
     }
 
     function updateLocalCount() {
-      let localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
+      const localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
       document.getElementById('local-count').innerText = localData.length;
     }
 
@@ -272,7 +255,6 @@
       if (isSyncing) return;
       let localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
       if (localData.length === 0) { alert("送信する写真はありません。"); return; }
-
       if (!confirm(`未送信の写真が ${localData.length} 件あります。Googleドライブへ送信しますか？\n(電波の良い場所で行ってください)`)) return;
 
       isSyncing = true;
@@ -289,8 +271,6 @@
           alert("すべての写真のアップロードが完了しました！");
           return;
         }
-
-        const itemToSend = currentData[0];
         google.script.run
           .withSuccessHandler(() => {
             currentData.shift();
@@ -298,15 +278,15 @@
             updateLocalCount();
             sendNext();
           })
-          .withFailureHandler((err) => {
+          .withFailureHandler(() => {
             isSyncing = false;
-            syncBtn.innerText = `エラー再開 (${currentData.length})`;
+            const remaining = JSON.parse(localStorage.getItem('audit_photos') || '[]').length;
+            syncBtn.innerText = `エラー再開 (${remaining})`;
             syncBtn.style.background = "#ff3b30";
             alert("送信中にエラーが発生しました。電波の良い場所で再度お試しください。");
           })
-          .uploadPhoto(itemToSend);
+          .uploadPhoto(currentData[0]);
       }
-
       sendNext();
     }
 
