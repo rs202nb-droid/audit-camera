@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>店舗監査カメラ</title>
   <style>
     * { box-sizing: border-box; }
@@ -44,7 +45,7 @@
     input {
       flex: 1;
       padding: 8px;
-      font-size: 16px;
+      font-size: 16px; /* 16px未満だとiOSが自動ズームするので必ず16px以上 */
       border-radius: 4px;
       border: none;
     }
@@ -179,7 +180,7 @@
 <body>
   <div id="app">
     <div id="camera-container">
-      <video id="video" autoplay playsinline muted></video>
+      <video id="video" autoplay playsinline></video>
       <canvas id="canvas" style="display:none;"></canvas>
     </div>
 
@@ -213,13 +214,30 @@
     }
     setAppHeight();
     window.addEventListener('resize', () => {
-      // 少し待ってから再計算（iOS回転アニメーション完了後）
       setTimeout(setAppHeight, 100);
     });
-    // orientationchangeでも念のため
     window.addEventListener('orientationchange', () => {
       setTimeout(setAppHeight, 300);
     });
+
+    // WebAudio APIでシャッター音を生成（カメラのシャッター音に近い短いクリック音）
+    let audioCtx = null;
+    function playShutterSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // 高周波の短いバースト音でシャッターっぽく
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.1);
+      } catch(e) {}
+    }
 
     let currentCategory = '労務管理';
     const video = document.getElementById('video');
@@ -251,6 +269,7 @@
 
       video.classList.add('flash');
       setTimeout(() => video.classList.remove('flash'), 200);
+      playShutterSound();
 
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
