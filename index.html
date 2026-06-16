@@ -12,8 +12,7 @@
       display: flex;
       flex-direction: column;
       width: 100vw;
-      /* JSで --app-h をセットする */
-      height: calc(var(--app-h, 100vh));
+      height: var(--app-h, 100vh);
       overflow: hidden;
     }
 
@@ -84,7 +83,7 @@
       border-color: #fff;
     }
 
-    /* シャッターボタン */
+    /* シャッターボタン（縦向き） */
     #shutter-container {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -119,21 +118,23 @@
     @media (orientation: landscape) {
       #app {
         flex-direction: row;
+        height: var(--app-h, 100vh);
       }
 
       #camera-container {
         flex: 1;
-        height: 100%;
+        height: var(--app-h, 100vh);
       }
 
+      /* サイドパネル：高さをJSの計算値で固定 */
       #side-panel {
         display: flex;
         flex-direction: column;
         width: 30vw;
-        min-width: 200px;
-        max-width: 320px;
+        min-width: 190px;
+        max-width: 300px;
         background: #111;
-        height: 100%;
+        height: var(--app-h, 100vh);
         overflow: hidden;
         flex-shrink: 0;
       }
@@ -143,15 +144,18 @@
         align-items: stretch;
         gap: 5px;
         padding: 8px;
+        flex-shrink: 0;
       }
-      #config-container input { width: 100%; font-size: 15px; padding: 10px 8px; }
+      #config-container input { width: 100%; font-size: 16px; padding: 9px 8px; }
       #sync-btn { width: 100%; text-align: center; padding: 10px; font-size: 15px; }
 
+      /* カテゴリは残り領域を伸び縮みで使う */
       #category-container {
         grid-template-columns: repeat(2, 1fr);
         flex: 1;
         gap: 5px;
         padding: 6px;
+        min-height: 0;
         align-content: stretch;
       }
       .cat-btn {
@@ -160,18 +164,19 @@
         height: 100%;
       }
 
+      /* シャッターは高さを --app-h の33%に固定して必ず画面内に収める */
       #shutter-container {
         grid-template-columns: 1fr;
-        gap: 6px;
+        gap: 5px;
         padding: 8px;
-        height: auto;
-        min-height: unset;
         flex-shrink: 0;
+        height: calc(var(--app-h, 100vh) * 0.33);
+        min-height: 110px;
       }
       .shutter-btn {
-        font-size: 26px;
-        padding: 14px 0;
-        height: auto;
+        font-size: 24px;
+        padding: 0;
+        height: 100%;
         width: 100%;
       }
     }
@@ -208,24 +213,19 @@
   </div>
 
   <script>
-    // iOSの回転バグ対策：実際の表示領域をCSS変数にセット
+    // iOSのSafariアドレスバーを除いた実際の高さをCSS変数にセット
     function setAppHeight() {
       document.documentElement.style.setProperty('--app-h', window.innerHeight + 'px');
     }
     setAppHeight();
-    window.addEventListener('resize', () => {
-      setTimeout(setAppHeight, 100);
-    });
-    window.addEventListener('orientationchange', () => {
-      setTimeout(setAppHeight, 300);
-    });
+    window.addEventListener('resize', () => { setTimeout(setAppHeight, 100); });
+    window.addEventListener('orientationchange', () => { setTimeout(setAppHeight, 300); });
 
-    // WebAudio APIでシャッター音を生成（カメラのシャッター音に近い短いクリック音）
+    // WebAudio APIでシャッター音を生成
     let audioCtx = null;
     function playShutterSound() {
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        // 高周波の短いバースト音でシャッターっぽく
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.connect(gain);
