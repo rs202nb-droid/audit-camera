@@ -62,19 +62,19 @@
     /* カテゴリボタン */
     #category-container {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 4px;
-      padding: 4px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 5px;
+      padding: 5px;
       background: #151515;
       flex-shrink: 0;
     }
     .cat-btn {
-      padding: 12px 4px;
-      font-size: 14px;
+      padding: 13px 4px;
+      font-size: 15px;
       background: #333;
       color: #fff;
       border: 2px solid transparent;
-      border-radius: 6px;
+      border-radius: 8px;
       font-weight: bold;
     }
     .cat-btn.active {
@@ -87,16 +87,15 @@
     #shutter-container {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      padding: 10px;
+      gap: 6px;
+      padding: 6px;
       background: #000;
       flex-shrink: 0;
-      /* 縦向き：画面の約25%をシャッターに確保 */
-      height: 25dvh;
-      min-height: 100px;
+      height: 18dvh;
+      min-height: 80px;
     }
     .shutter-btn {
-      font-size: 32px;
+      font-size: 26px;
       font-weight: bold;
       border: none;
       border-radius: 12px;
@@ -129,8 +128,9 @@
       #side-panel {
         display: flex;
         flex-direction: column;
-        width: 210px;
-        min-width: 160px;
+        width: 30vw;
+        min-width: 200px;
+        max-width: 320px;
         background: #111;
         height: 100%;
         overflow: hidden;
@@ -140,18 +140,24 @@
       #config-container {
         flex-direction: column;
         align-items: stretch;
-        gap: 6px;
+        gap: 5px;
         padding: 8px;
       }
-      #config-container input { width: 100%; }
-      #sync-btn { width: 100%; text-align: center; }
+      #config-container input { width: 100%; font-size: 15px; padding: 10px 8px; }
+      #sync-btn { width: 100%; text-align: center; padding: 10px; font-size: 15px; }
 
       #category-container {
         grid-template-columns: repeat(2, 1fr);
         flex: 1;
-        align-content: start;
+        gap: 5px;
+        padding: 6px;
+        align-content: stretch;
       }
-      .cat-btn { padding: 8px 4px; font-size: 12px; }
+      .cat-btn {
+        padding: 0;
+        font-size: 14px;
+        height: 100%;
+      }
 
       #shutter-container {
         grid-template-columns: 1fr;
@@ -159,8 +165,14 @@
         padding: 8px;
         height: auto;
         min-height: unset;
+        flex-shrink: 0;
       }
-      .shutter-btn { font-size: 22px; padding: 10px 0; height: auto; }
+      .shutter-btn {
+        font-size: 26px;
+        padding: 14px 0;
+        height: auto;
+        width: 100%;
+      }
     }
   </style>
 </head>
