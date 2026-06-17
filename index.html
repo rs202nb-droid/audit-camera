@@ -298,6 +298,8 @@
       }
     }
 
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
     // バックグラウンド自動送信（no-corsモード・撮影UIをブロックしない）
     let isSyncing = false;
     async function autoSync() {
@@ -314,7 +316,9 @@
             mode: 'no-cors',
             body: JSON.stringify(currentData[0])
           });
-          // no-corsはレスポンス読めないので送信できたとみなして削除
+          // no-corsはレスポンス読めないのでGASの処理完了を待ってから削除
+          await sleep(4000);
+          currentData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
           currentData.shift();
           localStorage.setItem('audit_photos', JSON.stringify(currentData));
           updateLocalCount();
