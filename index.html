@@ -254,12 +254,20 @@
     navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: "environment" },
-        width: { min: 1280, ideal: 1920 },
-        height: { min: 720, ideal: 1080 }
+        width: { min: 1280, ideal: 3840 },
+        height: { min: 720, ideal: 2160 },
+        focusMode: { ideal: "continuous" }
       },
       audio: false
-    }).then(stream => { video.srcObject = stream; })
-      .catch(() => { alert("カメラの起動に失敗しました。設定を確認してください。"); });
+    }).then(stream => {
+      video.srcObject = stream;
+      // 対応端末なら明示的に継続オートフォーカスを要求(非対応環境では無視される)
+      const [track] = stream.getVideoTracks();
+      const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+      if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+      }
+    }).catch(() => { alert("カメラの起動に失敗しました。設定を確認してください。"); });
 
     function selectCategory(element, name) {
       document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
@@ -278,7 +286,7 @@
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = canvas.toDataURL('image/jpeg', 0.8);
+      const imageData = canvas.toDataURL('image/jpeg', 0.95);
 
       let localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
       localData.push({ storeName, category: currentCategory, judgement, image: imageData, timestamp: Date.now() });
