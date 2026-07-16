@@ -275,7 +275,86 @@
       currentCategory = name;
     }
 
-    function takeSnapshot(judgement) {
+    // ===============================
+    // 写真保存キュー(IndexedDB)
+    // localStorageは5〜10MB程度しか入らず、4K/高画質の写真が数枚溜まると
+    // 容量オーバーで例外→撮影が黙って失われる事故が起きたため移行。
+    // IndexedDBは数百MB〜GB単位まで扱えるので同じ問題が起きにくい。
+    // ===============================
+    const DB_NAME = 'audit_camera_db';
+    const STORE_NAME = 'photos';
+    let dbPromise = null;
+
+    function openDB() {
+      if (dbPromise) return dbPromise;
+      dbPromise = new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      return dbPromise;
+    }
+
+    async function addPhoto(photo) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).add(photo);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function getOldestPhoto() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).openCursor();
+        req.onsuccess = () => resolve(req.result ? req.result.value : null);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function deletePhoto(id) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function getPhotoCount() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).count();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    // 旧localStorage方式で溜まったまま送れていない写真があれば救出して移行
+    async function migrateFromLocalStorage() {
+      const raw = localStorage.getItem('audit_photos');
+      if (!raw) return;
+      try {
+        const oldData = JSON.parse(raw);
+        for (const photo of oldData) {
+          await addPhoto(photo);
+        }
+      } catch (e) {}
+      localStorage.removeItem('audit_photos');
+    }
+
+    async function takeSnapshot(judgement) {
       const storeName = storeInput.value.trim();
       if (!storeName) { alert("最初に店舗名を入力してください。"); return; }
 
@@ -288,18 +367,21 @@
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL('image/jpeg', 0.95);
 
-      let localData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-      localData.push({ storeName, category: currentCategory, judgement, image: imageData, timestamp: Date.now() });
-      localStorage.setItem('audit_photos', JSON.stringify(localData));
-      updateLocalCount();
+      try {
+        await addPhoto({ storeName, category: currentCategory, judgement, image: imageData, timestamp: Date.now() });
+      } catch (e) {
+        alert("画像の保存に失敗しました。お手数ですがもう一度撮影してください。\n" + e.message);
+        return;
+      }
+      await updateLocalCount();
       autoSync(); // 撮影と同時にバックグラウンド送信開始
     }
 
     // GAS WebアプリのURL
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzzm1rsYowVX0rFUb5JItn4UIhfv9rl2I_8b-aN1LnSGGREmDVREF1VXboZ77WqXCou/exec';
 
-    function updateLocalCount() {
-      const count = JSON.parse(localStorage.getItem('audit_photos') || '[]').length;
+    async function updateLocalCount() {
+      const count = await getPhotoCount();
       const syncBtn = document.getElementById('sync-btn');
       if (count === 0) {
         syncBtn.innerText = "✓ 同期済み";
@@ -319,21 +401,19 @@
       isSyncing = true;
 
       while (true) {
-        let currentData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-        if (currentData.length === 0) break;
+        const photo = await getOldestPhoto();
+        if (!photo) break;
 
         try {
           await fetch(GAS_URL, {
             method: 'POST',
             mode: 'no-cors',
-            body: JSON.stringify(currentData[0])
+            body: JSON.stringify(photo)
           });
           // no-corsはレスポンス読めないのでGASの処理完了を待ってから削除
           await sleep(4000);
-          currentData = JSON.parse(localStorage.getItem('audit_photos') || '[]');
-          currentData.shift();
-          localStorage.setItem('audit_photos', JSON.stringify(currentData));
-          updateLocalCount();
+          await deletePhoto(photo.id);
+          await updateLocalCount();
         } catch (e) {
           // 電波が悪い場合は30秒後にリトライ
           isSyncing = false;
@@ -350,8 +430,11 @@
       autoSync();
     }
 
-    // 起動時に件数表示＆未送信があれば即送信開始
-    updateLocalCount();
+    // 起動時に旧データを救出→件数表示→未送信があれば即送信開始
+    migrateFromLocalStorage().then(() => {
+      updateLocalCount();
+      autoSync();
+    });
     autoSync();
   </script>
 </body>
