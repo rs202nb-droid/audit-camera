@@ -358,6 +358,13 @@
       const storeName = storeInput.value.trim();
       if (!storeName) { alert("最初に店舗名を入力してください。"); return; }
 
+      // カメラ準備前に押されると真っ黒な空画像が保存されてしまうため、
+      // 映像サイズが取得できているか(=起動完了しているか)を確認する
+      if (!video.videoWidth || !video.videoHeight) {
+        alert("カメラの準備がまだ完了していません。数秒待ってからもう一度撮影してください。");
+        return;
+      }
+
       video.classList.add('flash');
       setTimeout(() => video.classList.remove('flash'), 200);
       playShutterSound();
@@ -392,9 +399,7 @@
       }
     }
 
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-    // バックグラウンド自動送信（no-corsモード・撮影UIをブロックしない）
+    // バックグラウンド自動送信（GASの成功応答を確認してから削除・撮影UIをブロックしない）
     let isSyncing = false;
     async function autoSync() {
       if (isSyncing) return;
@@ -405,15 +410,31 @@
         if (!photo) break;
 
         try {
-          await fetch(GAS_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify(photo)
-          });
-          // no-corsはレスポンス読めないのでGASの処理完了を待ってから削除
-          await sleep(4000);
-          await deletePhoto(photo.id);
-          await updateLocalCount();
+          // 電波が弱いと通信が固まって永久に待ち続けることがあるため、
+          // 20秒で打ち切って(abort)リトライに回す
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 20000);
+          let res;
+          try {
+            // no-corsをやめ、GASの返事({result:'success'})を読む。
+            // Content-Typeを付けない(=text/plainの簡易リクエスト)ことでCORSプリフライトを避ける
+            res = await fetch(GAS_URL, {
+              method: 'POST',
+              body: JSON.stringify(photo),
+              signal: controller.signal
+            });
+          } finally {
+            clearTimeout(timer);
+          }
+          const json = await res.json();
+          if (json.result === 'success') {
+            // GASが「保存できた」と確認できた時だけ削除する（証拠写真の消失防止）
+            await deletePhoto(photo.id);
+            await updateLocalCount();
+          } else {
+            // GAS側で保存に失敗。写真は消さずにリトライへ回す
+            throw new Error(json.message || 'サーバー側で保存に失敗しました');
+          }
         } catch (e) {
           // 電波が悪い場合は30秒後にリトライ
           isSyncing = false;
