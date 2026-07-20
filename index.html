@@ -387,6 +387,10 @@
     // GAS WebアプリのURL
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzzm1rsYowVX0rFUb5JItn4UIhfv9rl2I_8b-aN1LnSGGREmDVREF1VXboZ77WqXCou/exec';
 
+    // 合言葉(トークン)。GAS側と同じ文字列にする。素のURLを叩くだけの不正投入を弾く簡易対策。
+    // ※フロントのソースに書くため完全な秘密ではない（詳しくはGAS側コメント参照）
+    const AUTH_TOKEN = 'audit-cam-Xk9f2Qd7mL4pRt8w-2026';
+
     async function updateLocalCount() {
       const count = await getPhotoCount();
       const syncBtn = document.getElementById('sync-btn');
@@ -420,7 +424,7 @@
             // Content-Typeを付けない(=text/plainの簡易リクエスト)ことでCORSプリフライトを避ける
             res = await fetch(GAS_URL, {
               method: 'POST',
-              body: JSON.stringify(photo),
+              body: JSON.stringify({ ...photo, token: AUTH_TOKEN }),
               signal: controller.signal
             });
           } finally {
@@ -451,12 +455,12 @@
       autoSync();
     }
 
-    // 起動時に旧データを救出→件数表示→未送信があれば即送信開始
+    // 起動時に旧データを救出→件数表示→未送信があれば送信開始
+    // （救出が終わってから1回だけautoSyncを呼ぶ。以前は末尾でも呼んでいて二重だった）
     migrateFromLocalStorage().then(() => {
       updateLocalCount();
       autoSync();
     });
-    autoSync();
   </script>
 </body>
 </html>
