@@ -251,23 +251,45 @@
       localStorage.setItem('saved_store_name', storeInput.value);
     });
 
-    navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { min: 1280, ideal: 3840 },
-        height: { min: 720, ideal: 2160 },
-        focusMode: { ideal: "continuous" }
-      },
-      audio: false
-    }).then(stream => {
-      video.srcObject = stream;
-      // 対応端末なら明示的に継続オートフォーカスを要求(非対応環境では無視される)
-      const [track] = stream.getVideoTracks();
-      const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-      if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+    // カメラ取得(初回起動時・画面復帰時の両方から呼ぶ)
+    async function startCamera() {
+      // 既にライブなストリームがあれば何もしない(無駄な再取得を避ける)
+      const existingTrack = video.srcObject && video.srcObject.getVideoTracks && video.srcObject.getVideoTracks()[0];
+      if (existingTrack && existingTrack.readyState === 'live') return;
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { min: 1280, ideal: 3840 },
+            height: { min: 720, ideal: 2160 },
+            focusMode: { ideal: "continuous" }
+          },
+          audio: false
+        });
+        video.srcObject = stream;
+        video.play().catch(() => {});
+        // 対応端末なら明示的に継続オートフォーカスを要求(非対応環境では無視される)
+        const [track] = stream.getVideoTracks();
+        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+        if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+          track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+        }
+      } catch (e) {
+        alert("カメラの起動に失敗しました。設定を確認してください。");
       }
-    }).catch(() => { alert("カメラの起動に失敗しました。設定を確認してください。"); });
+    }
+
+    startCamera();
+
+    // 画面ロック等でバックグラウンドに回るとiOSがカメラ映像を止めてしまい、
+    // 復帰しても映像が固まったままになる(ホーム画面アプリはリロードもできない)ため、
+    // 表示状態に戻ったタイミングでカメラが生きているか確認し、死んでいれば自動で撮り直す
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        startCamera();
+      }
+    });
 
     function selectCategory(element, name) {
       document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
