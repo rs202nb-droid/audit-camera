@@ -374,8 +374,15 @@
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL('image/jpeg', 0.95);
 
+      // 撮影した写真ごとに一意のIDを1回だけ発行する。
+      // アプリを閉じた/開いた等で同じ写真が何度も再送されても、
+      // このIDを見ればGAS側で「もう保存済み」と判定して二重保存を防げる。
+      const photoId = crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
       try {
-        await addPhoto({ storeName, category: currentCategory, judgement, image: imageData, timestamp: Date.now() });
+        await addPhoto({ photoId, storeName, category: currentCategory, judgement, image: imageData, timestamp: Date.now() });
       } catch (e) {
         alert("画像の保存に失敗しました。お手数ですがもう一度撮影してください。\n" + e.message);
         return;
