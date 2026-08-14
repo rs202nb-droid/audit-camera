@@ -1,0 +1,10 @@
+# Gradle / Android のビルド生成物と、PC固有の設定ファイル
+*.iml
+.gradle/
+/local.properties
+.idea/
+build/
+/captures
+.externalNativeBuild
+.cxx
+/app/release/
