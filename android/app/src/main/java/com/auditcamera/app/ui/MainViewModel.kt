@@ -18,7 +18,7 @@ import java.io.File
 import java.util.UUID
 
 /** 表示中の画面 */
-enum class Screen { SETUP, CAMERA, REVIEW }
+enum class Screen { SETUP, CAMERA, REVIEW, CATEGORY_SETTINGS }
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -33,8 +33,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _storeName = MutableStateFlow(prefs.storeName)
     val storeName: StateFlow<String> = _storeName.asStateFlow()
 
-    private val _selectedCategory = MutableStateFlow(CATEGORIES.first())
+    /** 監査項目の名前。設定画面で変更できる */
+    private val _categories = MutableStateFlow(prefs.categories)
+    val categories: StateFlow<List<String>> = _categories.asStateFlow()
+
+    private val _selectedCategory = MutableStateFlow(prefs.categories.first())
     val selectedCategory: StateFlow<String> = _selectedCategory.asStateFlow()
+
+    fun updateCategories(newCategories: List<String>) {
+        _categories.value = newCategories
+        prefs.categories = newCategories
+        // 選択中の項目が名前変更で消えた場合は先頭に戻す
+        if (_selectedCategory.value !in newCategories) {
+            _selectedCategory.value = newCategories.first()
+        }
+    }
+
+    fun resetCategoriesToDefault() {
+        updateCategories(AppPrefs.DEFAULT_CATEGORIES)
+    }
 
     private val _shutterSoundEnabled = MutableStateFlow(prefs.shutterSoundEnabled)
     val shutterSoundEnabled: StateFlow<Boolean> = _shutterSoundEnabled.asStateFlow()
@@ -98,12 +115,5 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deletePhoto(photoId: String) {
         viewModelScope.launch { repo.deletePhoto(photoId) }
-    }
-
-    companion object {
-        /** 監査項目。Web版(index.html)のボタンと同じ並び・同じ名前 */
-        val CATEGORIES = listOf(
-            "労務管理", "安全衛生", "基本項目", "事務金銭", "組織開発", "クレンリネス"
-        )
     }
 }

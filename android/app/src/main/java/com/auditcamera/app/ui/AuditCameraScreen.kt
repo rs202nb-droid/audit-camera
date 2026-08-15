@@ -53,6 +53,7 @@ import java.io.File
 @Composable
 fun AuditCameraScreen(
     storeName: String,
+    categories: List<String>,
     selectedCategory: String,
     pendingCount: Int,
     shutterSoundEnabled: Boolean,
@@ -196,7 +197,7 @@ fun AuditCameraScreen(
             }
 
             // 監査項目(タップしても撮影はされない。選択状態が変わるだけ)
-            MainViewModel.CATEGORIES.chunked(2).forEach { pair ->
+            categories.chunked(2).forEach { pair ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)

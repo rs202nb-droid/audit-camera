@@ -40,7 +40,8 @@ fun StoreSetupScreen(
     onStoreNameChange: (String) -> Unit,
     onShutterSoundChange: (Boolean) -> Unit,
     onStart: () -> Unit,
-    onOpenReview: () -> Unit
+    onOpenReview: () -> Unit,
+    onOpenCategorySettings: () -> Unit
 ) {
     val today = remember { SimpleDateFormat("yyyy年M月d日", Locale.JAPAN).format(Date()) }
 
@@ -116,8 +117,16 @@ fun StoreSetupScreen(
             )
         }
 
-        TextButton(onClick = onOpenReview, modifier = Modifier.padding(top = 4.dp)) {
-            Text("撮影した写真を見る", color = Color(0xFF8AB4F8))
+        Row(
+            modifier = Modifier.padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            TextButton(onClick = onOpenReview) {
+                Text("撮影した写真を見る", color = Color(0xFF8AB4F8))
+            }
+            TextButton(onClick = onOpenCategorySettings) {
+                Text("項目名の設定", color = Color(0xFF8AB4F8))
+            }
         }
     }
 }

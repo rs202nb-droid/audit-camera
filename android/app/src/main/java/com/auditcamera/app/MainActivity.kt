@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.auditcamera.app.ui.AuditCameraScreen
+import com.auditcamera.app.ui.CategorySettingsScreen
 import com.auditcamera.app.ui.MainViewModel
 import com.auditcamera.app.ui.ReviewScreen
 import com.auditcamera.app.ui.Screen
@@ -53,6 +54,7 @@ private fun AuditCameraApp(vm: MainViewModel = viewModel()) {
 
     val screen by vm.screen.collectAsState()
     val storeName by vm.storeName.collectAsState()
+    val categories by vm.categories.collectAsState()
     val selectedCategory by vm.selectedCategory.collectAsState()
     val pendingCount by vm.pendingCount.collectAsState()
     val shutterSoundEnabled by vm.shutterSoundEnabled.collectAsState()
@@ -83,13 +85,22 @@ private fun AuditCameraApp(vm: MainViewModel = viewModel()) {
             onStoreNameChange = vm::updateStoreName,
             onShutterSoundChange = vm::setShutterSoundEnabled,
             onStart = { vm.goTo(Screen.CAMERA) },
-            onOpenReview = { vm.goTo(Screen.REVIEW) }
+            onOpenReview = { vm.goTo(Screen.REVIEW) },
+            onOpenCategorySettings = { vm.goTo(Screen.CATEGORY_SETTINGS) }
+        )
+
+        Screen.CATEGORY_SETTINGS -> CategorySettingsScreen(
+            categories = categories,
+            onSave = vm::updateCategories,
+            onResetToDefault = vm::resetCategoriesToDefault,
+            onBack = { vm.goTo(Screen.SETUP) }
         )
 
         Screen.CAMERA -> {
             if (hasCameraPermission) {
                 AuditCameraScreen(
                     storeName = storeName,
+                    categories = categories,
                     selectedCategory = selectedCategory,
                     pendingCount = pendingCount,
                     shutterSoundEnabled = shutterSoundEnabled,
