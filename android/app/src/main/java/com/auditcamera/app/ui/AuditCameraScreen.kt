@@ -224,9 +224,10 @@ fun AuditCameraScreen(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ShutterButton("〇", Color(0xFF1E8449), shutterFontSize, Modifier.weight(1f)) { capture("〇") }
-                ShutterButton("×", Color(0xFFC0392B), shutterFontSize, Modifier.weight(1f)) { capture("×") }
+                // 並び順は右手の親指で押しやすいよう、押す頻度の高い×▲を手前(右)に置く
                 ShutterButton("▲", Color(0xFFD68910), shutterFontSize, Modifier.weight(1f)) { capture("▲") }
+                ShutterButton("×", Color(0xFFC0392B), shutterFontSize, Modifier.weight(1f)) { capture("×") }
+                ShutterButton("〇", Color(0xFF1E8449), shutterFontSize, Modifier.weight(1f)) { capture("〇") }
             }
 
             // 送信状況＋見返し
