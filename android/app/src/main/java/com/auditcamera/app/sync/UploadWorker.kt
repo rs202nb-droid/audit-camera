@@ -35,8 +35,11 @@ class UploadWorker(
     private val dao = AppDatabase.get(context).pendingPhotoDao()
 
     private val client = OkHttpClient.Builder()
-        // 電波が弱いと通信が固まったままになるため、20秒で打ち切ってリトライに回す
-        .callTimeout(20, TimeUnit.SECONDS)
+        // 接続できない(電波なし)ときは早めに諦める
+        .connectTimeout(20, TimeUnit.SECONDS)
+        // 原寸の写真(数MB)をGASが保存し終えるまで待つ。以前は全体20秒で打ち切っていたが、
+        // GASが遅い日は毎回途中で切られて1時間に数枚しか送れなくなった(2026-10-27)
+        .callTimeout(120, TimeUnit.SECONDS)
         .build()
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -53,8 +56,12 @@ class UploadWorker(
         // 撮影直後の写真は見返し画面で消せるよう、猶予が過ぎたものだけを対象にする
         val cutoff = now - SyncScheduler.GRACE_PERIOD_MILLIS
 
+        // 今回の実行で失敗した写真。先頭の1枚が失敗し続けても、後ろの写真を送れるよう飛ばす
+        val failedIds = mutableListOf<String>()
+        var consecutiveFailures = 0
+
         while (true) {
-            val photo = dao.getOldestPendingCapturedBefore(cutoff) ?: break
+            val photo = dao.getOldestPendingCapturedBeforeExcluding(cutoff, failedIds) ?: break
 
             val file = File(photo.localFilePath)
             if (!file.exists()) {
@@ -70,14 +77,31 @@ class UploadWorker(
             }
 
             if (!success) {
-                // 写真は消さずに残したままリトライへ回す(証拠写真の消失防止)
-                return Result.retry()
+                // 写真は消さずに残す(証拠写真の消失防止)。この写真は飛ばして次へ進む。
+                // ただし3連続で失敗したら通信自体がダメとみなし、今回は打ち切る
+                failedIds.add(photo.photoId)
+                consecutiveFailures++
+                if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) break
+                continue
             }
+            consecutiveFailures = 0
 
             dao.markSynced(photo.photoId, System.currentTimeMillis())
             // 送信できたのでアプリ内の作業用ファイルは削除。
             // ギャラリー側のバックアップは30日間そのまま残す(万一のための保険)
             runCatching { file.delete() }
+        }
+
+        // 失敗があった場合は、30秒後の再送を自分で予約する。
+        // Result.retry() だと失敗のたびに待ち時間が延びていき(最大5時間)、
+        // 原因が直っても再開が遅れるため使わない
+        if (failedIds.isNotEmpty()) {
+            SyncScheduler.enqueueUpload(
+                applicationContext,
+                delayMillis = RETRY_DELAY_MILLIS,
+                policy = ExistingWorkPolicy.REPLACE
+            )
+            return Result.success()
         }
 
         // まだ猶予中の写真が残っていれば、あらためて送信を予約しておく
@@ -130,6 +154,12 @@ class UploadWorker(
 
     companion object {
         private const val TAG = "UploadWorker"
+
+        /** 連続でこの回数失敗したら、今回の実行は打ち切る */
+        private const val MAX_CONSECUTIVE_FAILURES = 3
+
+        /** 失敗後に再送するまでの待ち時間(Web版の「30秒後に再試行」と同じ) */
+        private val RETRY_DELAY_MILLIS = TimeUnit.SECONDS.toMillis(30)
 
         /** 送信処理を同時に1つだけに制限するための鍵(アプリ全体で共有) */
         private val uploadMutex = Mutex()

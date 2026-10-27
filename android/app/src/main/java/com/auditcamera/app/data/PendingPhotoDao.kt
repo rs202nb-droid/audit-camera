@@ -34,6 +34,19 @@ interface PendingPhotoDao {
     )
     suspend fun getOldestPendingCapturedBefore(capturedBefore: Long): PendingPhoto?
 
+    /**
+     * 上と同じだが、今回の送信で失敗済みの写真(excludedIds)は飛ばす。
+     * 先頭の1枚が失敗し続けても、後ろの写真が詰まらないようにするために使う。
+     */
+    @Query(
+        "SELECT * FROM pending_photos WHERE syncedAtMillis IS NULL AND capturedAtMillis <= :capturedBefore " +
+            "AND photoId NOT IN (:excludedIds) ORDER BY capturedAtMillis ASC LIMIT 1"
+    )
+    suspend fun getOldestPendingCapturedBeforeExcluding(
+        capturedBefore: Long,
+        excludedIds: List<String>
+    ): PendingPhoto?
+
     @Query("SELECT COUNT(*) FROM pending_photos WHERE syncedAtMillis IS NULL")
     suspend fun countPending(): Int
 
